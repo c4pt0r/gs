@@ -1,8 +1,9 @@
-"""`gmail rm` — trash (default) or permanently delete one or more messages."""
+"""`gs gmail rm` — trash (default) or permanently delete one or more messages."""
 
 import click
+from googleapiclient.errors import HttpError
 
-from . import get_service
+from . import get_service, http_error_message
 from ..messages import MessageService
 
 
@@ -25,9 +26,12 @@ def rm(ctx, message_ids, permanently, yes):
 
     svc = MessageService(get_service(ctx))
     for mid in message_ids:
-        if permanently:
-            svc.delete(mid)
-            click.echo(f"{mid}: permanently deleted")
-        else:
-            svc.trash(mid)
-            click.echo(f"{mid}: moved to Trash")
+        try:
+            if permanently:
+                svc.delete(mid)
+                click.echo(f"{mid}: permanently deleted")
+            else:
+                svc.trash(mid)
+                click.echo(f"{mid}: moved to Trash")
+        except HttpError as e:
+            click.echo(f"{mid}: {http_error_message(e)}", err=True)

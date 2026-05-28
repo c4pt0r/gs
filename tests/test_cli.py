@@ -151,6 +151,21 @@ def test_calendar_rm():
     service.events().delete.assert_called_with(calendarId="primary", eventId="ev1")
 
 
+def test_calendar_rm_already_deleted_is_graceful():
+    from googleapiclient.errors import HttpError
+
+    resp = type("Resp", (), {"status": 410, "reason": "Gone"})()
+    err = HttpError(resp, b'{"error": {"message": "Resource has been deleted"}}')
+
+    service = MagicMock()
+    service.events().delete().execute.side_effect = err
+    result, _ = run_calendar(["calendar", "rm", "ev1"], service=service)
+    # No traceback: clean exit, friendly message, id mentioned.
+    assert result.exit_code == 0
+    assert "ev1" in result.output
+    assert "Traceback" not in result.output
+
+
 # --------------------------------------------------------------------------
 # drive subgroup
 # --------------------------------------------------------------------------

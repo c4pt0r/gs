@@ -3,8 +3,9 @@
 import os
 
 import click
+from googleapiclient.errors import HttpError
 
-from . import get_drive_service
+from . import get_drive_service, http_error_message
 from ..drive_service import DriveService
 
 
@@ -79,5 +80,8 @@ def drive_rm(ctx, file_ids, permanently, yes):
         )
     svc = DriveService(get_drive_service(ctx))
     for fid in file_ids:
-        svc.delete(fid, permanent=permanently)
-        click.echo(f"{fid}: {'permanently deleted' if permanently else 'trashed'}")
+        try:
+            svc.delete(fid, permanent=permanently)
+            click.echo(f"{fid}: {'permanently deleted' if permanently else 'trashed'}")
+        except HttpError as e:
+            click.echo(f"{fid}: {http_error_message(e)}", err=True)

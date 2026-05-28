@@ -1,8 +1,9 @@
 """`gs calendar` — list calendars, list/create/delete events."""
 
 import click
+from googleapiclient.errors import HttpError
 
-from . import get_calendar_service
+from . import get_calendar_service, http_error_message
 from ..calendar_service import CalendarService, parse_when
 
 
@@ -86,5 +87,8 @@ def calendar_rm(ctx, event_ids, calendar_id):
     """Delete one or more events."""
     svc = CalendarService(get_calendar_service(ctx))
     for eid in event_ids:
-        svc.delete_event(eid, calendar_id=calendar_id)
-        click.echo(f"{eid}: deleted")
+        try:
+            svc.delete_event(eid, calendar_id=calendar_id)
+            click.echo(f"{eid}: deleted")
+        except HttpError as e:
+            click.echo(f"{eid}: {http_error_message(e)}", err=True)

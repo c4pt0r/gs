@@ -3,6 +3,18 @@
 from ..config import Config
 
 
+def http_error_message(error) -> str:
+    """Turn a googleapiclient HttpError into a short, friendly message."""
+    status = getattr(getattr(error, "resp", None), "status", None)
+    if status in (404, 410):
+        return "not found (already deleted?)"
+    try:
+        reason = error._get_reason()  # parses the API error body
+        return f"{status}: {reason}" if status else reason
+    except Exception:
+        return str(error)
+
+
 def build_config(ctx, **kwargs) -> Config:
     """Build a Config from the group's shared options (ctx.obj) plus the
     subcommand's own options. Subcommand options take precedence."""
