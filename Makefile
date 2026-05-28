@@ -49,6 +49,7 @@ run: ## Run gmail with example config
 
 example: ## Show example usage
 	@echo "Example usage:"
-	@echo "  uv run gmail --credentials credentials.json --follow"
-	@echo "  uv run gmail --from 'noreply@github.com' --follow"
-	@echo "  uv run gmail --config-file gmail.yaml"
+	@echo "  uv run gmail --credentials credentials.json tail --tail"
+	@echo "  uv run gmail tail --from 'noreply@github.com' --tail"
+	@echo "  uv run gmail send --to a@b.com --subject Hi --body hello"
+	@echo "  uv run gmail --config-file gmail.yaml tail"

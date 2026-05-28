@@ -1,565 +1,201 @@
-# gmailtail
+# gmail
 
-A command-line tool to monitor Gmail messages and output them as JSON, designed for automation, monitoring, and integration with other tools.
+A command-line tool to **manage and monitor Gmail**. Stream messages as JSON for
+automation (`gmail tail`), and send, delete, label, and organize mail directly
+from the terminal.
 
-Why: [My Blog](https://me.0xffff.me/gmailtail.html)
+> Formerly `gmailtail` (a read-only monitor). It is now a full management CLI
+> built around subcommands. See [Migration](#migration-from-gmailtail).
 
 ## Features
 
--  **Real-time monitoring** - Continuous monitoring of new emails with `--tail` mode
--  **Flexible filtering** - Filter by sender, subject, labels, attachments, and more
--  **Checkpoint support** - Resume monitoring from where you left off
--  **Multiple output formats** - JSON, JSON Lines, and compact formats
--  **Configuration files** - YAML configuration for complex setups
--  **Gmail search syntax** - Full support for Gmail's powerful search queries
--  **Easy authentication** - Support for OAuth2 and service accounts
--  **Interactive REPL mode** - Interactive shell for exploring and querying emails
+- **Real-time monitoring** — stream new mail as JSON with `gmail tail` (like `tail -f`)
+- **Send mail** — compose and send, with attachments and HTML bodies
+- **Delete** — move to Trash (default, reversible) or permanently delete
+- **Mark read / unread** — change read state in bulk
+- **Label management** — create, delete, rename, list labels
+- **Move between labels** — add/remove labels on messages
+- **Flexible filtering** — sender, subject, labels, attachments, Gmail search syntax
+- **Multiple output formats** — JSON, JSON Lines, compact
+- **Interactive REPL** — explore and query your account
+- **Checkpoints & config files** — resume monitoring; YAML config for complex setups
 
 ## Quick Start
 
-1. **Install using uv (recommended):**
-   ```bash
-   # Install uv if you haven't already
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   
-   # Clone and setup the project
-   git clone https://github.com/c4pt0r/gmailtail.git
-   cd gmailtail
-   uv sync
-   ```
-
-2. **Set up Google API credentials:**
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Create a new project or select an existing one
-   - Enable the Gmail API
-   - Create credentials (OAuth 2.0 Client ID for desktop applications)
-   - Download the credentials JSON file
-
-3. **Run gmailtail:**
-   ```bash
-   # Start in tail mode (continuous monitoring)
-   uv run gmailtail --credentials credentials.json --tail
-   
-   # Or start in interactive REPL mode
-   uv run gmailtail --credentials credentials.json --repl
-   ```
-
-## Installation
-
-### Using uv (recommended)
 ```bash
-# Clone the repository
-git clone https://github.com/c4pt0r/gmailtail.git
-cd gmailtail
-
-# Install dependencies and create virtual environment
+# Install (uv recommended)
+git clone https://github.com/c4pt0r/gmail.git
+cd gmail
 uv sync
-
-# Install in development mode
 uv pip install -e .
+
+# First run authenticates in the browser and caches a token at ~/.gmail/tokens
+gmail --credentials credentials.json profile
 ```
 
+## Authentication
 
-## Usage Examples
+`gmail` requires the full Gmail scope (`https://mail.google.com/`) because it can
+send and delete mail.
 
-### Basic monitoring
-```bash
-# Monitor all new emails
-gmailtail --tail
+1. Go to [Google Cloud Console](https://console.cloud.google.com/), create/select
+   a project, and **enable the Gmail API**.
+2. Create credentials → **OAuth 2.0 Client ID** → *Desktop application*; download the JSON.
+3. First run: `gmail --credentials credentials.json profile`. A browser opens for
+   consent; the token is cached at `~/.gmail/tokens` and reused afterward.
 
-# Monitor emails from specific sender
-gmailtail --from "noreply@github.com" --tail
+| Option | Use |
+|--------|-----|
+| `--credentials PATH` | OAuth2 client JSON (interactive/personal use) |
+| `--auth-token PATH` | Service account key (servers; needs domain-wide delegation) |
+| `--cached-auth-token PATH` | Token cache location (default `~/.gmail/tokens`) |
+| `--force-headless` | Console-based auth when no browser is available (e.g. SSH) |
+| `--ignore-token` | Ignore the cached token and re-authenticate |
 
-# Monitor with Gmail search query
-gmailtail --query "subject:alert OR subject:error" --tail
-```
-
-### Filtering options
-```bash
-# Monitor unread emails only
-gmailtail --unread-only --tail
-
-# Monitor emails with attachments
-gmailtail --has-attachment --include-attachments --tail
-
-# Monitor specific labels
-gmailtail --label important --label work --tail
-
-# Monitor since specific date
-gmailtail --since "2025-01-01T00:00:00Z" --tail
-```
-
-### Output formats
-```bash
-# Pretty JSON output
-gmailtail --format json --pretty --tail
-
-# JSON Lines format (one JSON per line)
-gmailtail --format json-lines --tail
-
-# Compact format
-gmailtail --format compact --tail
-
-# Include email body
-gmailtail --include-body --max-body-length 500 --tail
-
-# Custom fields only
-gmailtail --fields "id,subject,from,timestamp" --tail
-```
-
-### Checkpoint management
-```bash
-# Resume from last checkpoint
-gmailtail --resume --tail
-
-# Reset checkpoint and start fresh
-gmailtail --reset-checkpoint --tail
-
-# Custom checkpoint file
-gmailtail --checkpoint-file ./my-checkpoint --tail
-```
-
-### Configuration file
-```bash
-# Use configuration file
-gmailtail --config-file gmailtail.yaml
-
-# Example configuration file
-cp gmailtail.yaml.example gmailtail.yaml
-# Edit gmailtail.yaml as needed
-gmailtail --config-file gmailtail.yaml
-```
-
-### Advanced usage with jq
+These (plus `--verbose`, `--quiet`, `--config-file`, `--log-file`) are **global
+options** and go *before* the subcommand:
 
 ```bash
-# Extract only sender email and subject
-gmailtail --format json-lines --tail | jq -r '.from.email + ": " + .subject'
-
-# Filter emails by specific sender and get only timestamps
-gmailtail --format json-lines --tail | jq -r 'select(.from.email == "noreply@github.com") | .timestamp'
-
-# Count emails by sender
-gmailtail --format json-lines --once | jq -r '.from.email' | sort | uniq -c | sort -nr
-
-# Get all unique labels across emails
-gmailtail --format json-lines --once | jq -r '.labels[]?' | sort | uniq
-
-# Extract emails with attachments and show attachment info
-gmailtail --format json-lines --include-attachments --tail | jq 'select(.attachments | length > 0) | {subject, from: .from.email, attachments: [.attachments[].filename]}'
-
-# Monitor for urgent emails and send desktop notifications (macOS)
-gmailtail --query "label:urgent OR subject:urgent" --format json-lines --tail | jq -r '.subject' | while read subject; do osascript -e "display notification \"$subject\" with title \"Urgent Email\""; done
-
-# Extract email body text and save to files
-gmailtail --include-body --format json-lines --once | jq -r '"\(.id).txt|\(.body // .snippet)"' | while IFS='|' read filename content; do echo "$content" > "$filename"; done
-
-# Monitor GitHub notifications and extract PR/issue numbers
-gmailtail --from "notifications@github.com" --format json-lines --tail | jq -r 'select(.subject | test("Pull Request|Issue")) | .subject | capture(".*#(?<number>[0-9]+).*") | .number'
-
-# Create a summary of daily email activity
-gmailtail --since "$(date -d 'today' '+%Y-%m-%dT00:00:00Z')" --format json-lines --once | jq -r '[group_by(.from.email) | .[] | {sender: .[0].from.email, count: length}] | sort_by(.count) | reverse'
-
-# Monitor for emails with specific keywords in body and alert
-gmailtail --include-body --format json-lines --tail | jq -r 'select(.body | test("error|fail|alert"; "i")) | "ALERT: \(.from.email) - \(.subject)"'
-
-# Extract and format meeting invitations
-gmailtail --query "has:attachment filename:ics" --include-attachments --format json-lines --tail | jq '{meeting: .subject, organizer: .from.email, time: .timestamp, location: (.body | capture("Location:.*(?<loc>.*)")? | .loc // "N/A")}'
+gmail --credentials credentials.json tail --from "noreply@github.com"
 ```
 
-## Interactive REPL Mode
+## Commands
 
-The REPL (Read-Eval-Print Loop) mode provides an interactive shell for exploring and querying your Gmail account. This is perfect for ad-hoc email searches, debugging filters, and exploring your email data.
+| Command | Purpose |
+|---------|---------|
+| `gmail tail` | Stream/monitor messages as JSON (the original behavior) |
+| `gmail send` | Compose and send mail (attachments, HTML) |
+| `gmail read <id>` | Display one message in full (optionally `--mark-read`) |
+| `gmail mark <id...>` | Mark messages `--read` or `--unread` |
+| `gmail rm <id...>` | Trash (default) or `--permanently` delete |
+| `gmail mv <id...>` | Move/tag between labels (`--to`, `--from`) |
+| `gmail label ...` | `ls` / `create` / `rm` / `rename` labels |
+| `gmail profile` | Show account info |
+| `gmail repl` | Interactive shell |
 
-### Starting REPL Mode
+Run `gmail <command> --help` for full options.
+
+### Monitoring — `gmail tail`
 
 ```bash
-# Start REPL with OAuth2 credentials
-gmailtail --credentials credentials.json --repl
+# Stream all new mail continuously
+gmail tail --tail
 
-# Start REPL with configuration file
-gmailtail --config-file gmailtail.yaml --repl
+# One-shot dump (run once, then exit) — good for piping
+gmail tail --once --format json-lines
+
+# Filters
+gmail tail --from "noreply@github.com" --tail
+gmail tail --query "subject:alert OR subject:error" --tail
+gmail tail --unread-only --has-attachment --include-attachments --tail
+gmail tail --since "2025-01-01T00:00:00Z" --once
+
+# Output control
+gmail tail --include-body --max-body-length 500 --once
+gmail tail --fields "id,subject,from,timestamp" --format json-lines --once
+
+# Resume from checkpoint
+gmail tail --resume --tail
 ```
 
-### REPL Commands
-
-Once in REPL mode, you can use these commands:
-
-#### Basic Email Operations
-```
-# List emails from current label (default: 10 emails)
-gmailtail> ls
-
-# List 20 emails from current label
-gmailtail> ls 20
-
-# List emails from specific label
-gmailtail> ls INBOX
-
-# List 15 emails from specific label
-gmailtail> ls work 15
-
-# List only unread emails (new improved syntax)
-gmailtail> ls --unread
-
-# List 5 unread emails from specific label
-gmailtail> ls --unread important 5
-
-# Show recent emails from INBOX (alias for ls)
-gmailtail> tail
-
-# Show 10 recent emails from a specific label
-gmailtail> tail work 10
-
-# Show unread emails from INBOX
-gmailtail> unread
-
-# Show 5 unread emails from a specific label
-gmailtail> unread important 5
-
-# Execute a Gmail search query
-gmailtail> query from:noreply@github.com subject:pull
-```
-
-#### The ls Command (Enhanced Email Listing)
-
-The `ls` command is the primary way to list emails in REPL mode. It supports flexible syntax and improved unread email handling:
-
-```
-# Basic usage
-ls                        # List 10 emails from current label
-ls 20                     # List 20 emails from current label
-
-# Specify label and limit
-ls INBOX                  # List 10 emails from INBOX
-ls work 15                # List 15 emails from work label
-ls important 5            # List 5 emails from important label
-
-# Unread emails (new improved syntax)
-ls --unread               # List unread emails from current label
-ls -u                     # Short form for --unread
-ls --unread 20            # List 20 unread emails from current label
-ls --unread INBOX         # List unread emails from INBOX  
-ls --unread work 10       # List 10 unread emails from work label
-
-# Handle numeric labels (use quotes)
-ls "123"                  # List emails from label named "123"
-ls "123" 5                # List 5 emails from label "123"
-
-# Mixed arguments (intelligent parsing)
-ls 15 work                # List 15 emails from work (number first)
-ls work 15                # List 15 emails from work (label first)
-```
-
-**Note**: The `ls` command intelligently parses arguments based on their type (numeric vs text), making it more flexible than the original implementation.
-
-#### Account Information
-```
-# Show your Gmail profile info
-gmailtail> profile
-
-# List all available labels
-gmailtail> labels
-
-# Show current configuration
-gmailtail> config
-```
-
-#### Navigation
-```
-# Show help for all commands
-gmailtail> help
-
-# Exit REPL
-gmailtail> exit
-# or
-gmailtail> quit
-# or press Ctrl+D
-```
-
-### REPL Examples
+Pipe `json-lines` into `jq`:
 
 ```bash
-$ gmailtail --credentials credentials.json --repl
-
-Welcome to gmailtail REPL mode. Type 'help' for commands.
-
-gmailtail(INBOX)> ls 3
-
-=== Showing 3 recent emails from INBOX ===
-
- 1. [18c5b2a4f2e1d8f0] [2025-01-15 10:30:25] GitHub <noreply@github.com>     | New pull request assigned to you
- 2. [18c5b2a4f2e1d8f1] [2025-01-15 09:45:12] JIRA <noreply@jira.com>        | Issue updated: Bug in login system  
- 3. [18c5b2a4f2e1d8f2] [2025-01-15 08:20:30] Slack <noreply@slack.com>      | You have 5 new mentions
-
-gmailtail(INBOX)> ls --unread important 2
-
-=== Found 2 unread emails in important ===
-
- 1. [18c5b2a4f2e1d8f3] [2025-01-15 11:00:00] Monitor <alerts@monitor.com>   | Database connection alert
- 2. [18c5b2a4f2e1d8f4] [2025-01-15 10:30:00] System <system@server.com>    | Server maintenance scheduled
-
-gmailtail(INBOX)> ls work 5
-
-=== Showing 5 recent emails from work ===
-
- 1. [18c5b2a4f2e1d8f5] [2025-01-15 12:00:00] Boss <boss@company.com>        | Team meeting at 2 PM
- 2. [18c5b2a4f2e1d8f6] [2025-01-15 11:30:00] HR <hr@company.com>           | New policy update
- 3. [18c5b2a4f2e1d8f7] [2025-01-15 11:15:00] Dev Team <dev@company.com>    | Code review required
- 4. [18c5b2a4f2e1d8f8] [2025-01-15 10:45:00] PM <pm@company.com>           | Sprint planning notes
- 5. [18c5b2a4f2e1d8f9] [2025-01-15 10:00:00] IT <it@company.com>           | System maintenance window
-
-gmailtail(INBOX)> query subject:alert OR subject:error
-
-=== Found 2 messages ===
-
- 1. [18c5b2a4f2e1d8fa] [2025-01-15 11:15:00] Monitor <alerts@monitor.com>   | Database connection alert
- 2. [18c5b2a4f2e1d8fb] [2025-01-15 10:00:00] System <system@server.com>    | Error in backup process
-
-gmailtail(INBOX)> use work
-Switched to label: work
-
-gmailtail(work)> ls
-
-=== Showing 10 recent emails from work ===
-
- 1. [18c5b2a4f2e1d8fc] [2025-01-15 12:30:00] Client <client@external.com>   | Project update request
- 2. [18c5b2a4f2e1d8fd] [2025-01-15 12:15:00] Boss <boss@company.com>        | Budget approval needed
- ... (8 more emails)
-
-gmailtail(work)> profile
-Email: john.doe@example.com
-Messages Total: 15247
-Threads Total: 8932
-History ID: 1234567890
-
-gmailtail(work)> labels
-Available labels:
-  INBOX (INBOX)
-  SENT (SENT)
-  DRAFT (DRAFT)
-  important (Label_1)
-  work (Label_2)
-  personal (Label_3)
-  
-gmailtail(work)> exit
-Goodbye!
+gmail tail --format json-lines --tail | jq -r '.from.email + ": " + .subject'
+gmail tail --format json-lines --once | jq -r '.from.email' | sort | uniq -c | sort -nr
 ```
 
-### REPL Output Format
+### Sending — `gmail send`
 
-The REPL uses a human-readable compact format that shows:
-- **Timestamp**: When the email was received
-- **Sender**: Name (if available) or email address
-- **Subject**: Email subject (truncated if too long)
+```bash
+# Simple text email
+gmail send --to alice@example.com --subject "Hi" --body "Hello there"
 
-This format is optimized for quick scanning and readability in the terminal.
+# Multiple recipients, cc/bcc, attachments (repeat --attach)
+gmail send --to "a@x.com,b@y.com" --cc boss@x.com --subject "Report" \
+  --body "See attached." --attach report.pdf --attach data.csv
 
-## Command Line Options
-
-### Authentication
-- `--credentials PATH` - OAuth2 credentials file path
-- `--auth-token PATH` - Service account authentication token file path
-- `--cached-auth-token PATH` - Cached authentication token file path (default: `~/.gmailtail/tokens`)
-
-### Filtering
-- `--query QUERY` - Gmail search query syntax
-- `--from EMAIL` - Filter by sender email
-- `--to EMAIL` - Filter by recipient email
-- `--subject PATTERN` - Filter by subject (regex supported)
-- `--label LABEL` - Filter by label (can be used multiple times)
-- `--has-attachment` - Only emails with attachments
-- `--unread-only` - Only unread emails
-- `--since DATETIME` - Start from specified time (ISO 8601)
-
-### Output
-- `--format FORMAT` - Output format: json, json-lines, compact
-- `--fields FIELDS` - Comma-separated list of fields to include
-- `--include-body` - Include email body in output
-- `--include-attachments` - Include attachment information
-- `--max-body-length N` - Maximum body length (default: 1000)
-- `--pretty` - Pretty-print JSON output
-
-### Monitoring
-- `--tail, -f` - Continuous monitoring (like `tail -f`)
-- `--repl` - Start interactive REPL mode
-- `--once` - Run once and exit
-- `--poll-interval N` - Polling interval in seconds (default: 30)
-- `--batch-size N` - Messages per batch (default: 10)
-- `--max-messages N` - Maximum messages to process
-
-### Checkpoint
-- `--checkpoint-file PATH` - Checkpoint file path
-- `--checkpoint-interval N` - Save interval in seconds (default: 60)
-- `--resume` - Resume from last checkpoint
-- `--reset-checkpoint` - Reset checkpoint
-
-### Other
-- `--verbose, -v` - Verbose output mode
-- `--quiet` - Quiet mode, only output email JSON
-- `--log-file PATH` - Log file path
-- `--config-file PATH` - Configuration file path
-- `--dry-run` - Simulate run without actual processing
-
-## Output Format
-
-### JSON Format
-```json
-{
-  "id": "18234567890abcdef",
-  "threadId": "18234567890abcdef",
-  "timestamp": "2025-07-01T10:30:00Z",
-  "subject": "GitHub notification",
-  "from": {
-    "name": "GitHub",
-    "email": "noreply@github.com"
-  },
-  "to": [
-    {
-      "name": "John Doe",
-      "email": "john@example.com"
-    }
-  ],
-  "labels": ["INBOX", "UNREAD"],
-  "snippet": "You have a new pull request...",
-  "body": "Full email body here...",
-  "attachments": [
-    {
-      "filename": "report.pdf",
-      "mimeType": "application/pdf",
-      "size": 1024
-    }
-  ]
-}
+# HTML body, or read the body from a file / stdin
+gmail send --to a@x.com --subject "Newsletter" --html --body "<h1>Hi</h1>"
+echo "body text" | gmail send --to a@x.com --subject "Piped" --body-file -
 ```
 
-## Use Cases
+### Read state — `gmail mark` / `gmail read`
 
-- **Monitoring systems** - Alert on specific email patterns
-- **Automation workflows** - Trigger actions based on email content
-- **Data analysis** - Collect email metrics and statistics
-- **Integration** - Feed email data into other tools and systems
-- **Backup** - Archive important emails in structured format
-- **CI/CD** - Monitor build notifications and alerts
-- **Interactive exploration** - Use REPL mode for ad-hoc email searches and account exploration
-- **Filter debugging** - Test and refine Gmail search queries interactively
-
-## Configuration File
-
-Create a `gmailtail.yaml` file for complex configurations:
-
-```yaml
-# Authentication settings
-auth:
-  credentials_file: ~/.config/gmailtail/credentials.json
-  # auth_token: ~/.config/gmailtail/service-account.json
-  cached_auth_token: ~/.config/gmailtail/tokens
-
-# Email filtering settings
-filters:
-  query: "label:important"
-  # from: "noreply@github.com"
-  # to: "me@example.com"
-  # subject: "alert|error|warning"
-  # labels: ["important", "inbox"]
-  # has_attachment: true
-  unread_only: true
-  # since: "2025-01-01T00:00:00Z"
-
-# Output formatting
-output:
-  format: json-lines
-  include_body: true
-  include_attachments: true
-  max_body_length: 500
-  pretty: false
-  # fields: ["id", "subject", "from", "timestamp", "labels"]
-
-# Monitoring behavior
-monitoring:
-  poll_interval: 60
-  batch_size: 20
-  tail: true
-  # max_messages: 1000
-
-# Checkpoint settings
-checkpoint:
-  checkpoint_file: ~/.config/gmailtail/checkpoint
-  checkpoint_interval: 120
-  resume: true
-
-# Logging
-verbose: false
-quiet: false
-# log_file: ~/.config/gmailtail/gmailtail.log
+```bash
+gmail mark 18c5b2a4f2e1d8f0 --read
+gmail mark m1 m2 m3 --unread          # bulk
+gmail read 18c5b2a4f2e1d8f0           # display full message as JSON
+gmail read 18c5b2a4f2e1d8f0 --mark-read
 ```
 
-## Authentication Setup
+### Deleting — `gmail rm`
 
-### OAuth2 (Recommended for personal use)
+```bash
+gmail rm 18c5b2a4f2e1d8f0             # move to Trash (reversible)
+gmail rm m1 m2 m3                     # bulk trash
+gmail rm m1 --permanently             # prompts for confirmation, then hard-deletes
+gmail rm m1 --permanently --yes       # skip the prompt
+```
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create or select a project
-3. Enable Gmail API
-4. Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client ID"
-5. Choose "Desktop application"
-6. Download the JSON file
-7. Use with `--credentials path/to/credentials.json`
+### Labels — `gmail label` / `gmail mv`
 
-### Service Account (For server/automated environments)
+```bash
+gmail label ls
+gmail label create "Work"
+gmail label rename "Work" "Work/2026"
+gmail label rm "Work/2026"
 
-1. In Google Cloud Console, go to "Credentials"
-2. Create "Service Account"
-3. Download the JSON key file
-4. Use with `--service-account path/to/service-account.json`
+# Move = add destination label, optionally remove source label
+gmail mv 18c5b2a4f2e1d8f0 --to "Work"               # just tag with Work
+gmail mv 18c5b2a4f2e1d8f0 --to "Work" --from INBOX  # archive out of INBOX into Work
+```
 
-Note: Service accounts need domain-wide delegation for Gmail access.
+## Configuration file
+
+```bash
+cp gmail.yaml.example gmail.yaml   # edit it
+gmail --config-file gmail.yaml tail
+```
+
+Sections: `auth`, `filters`, `output`, `monitoring`, `checkpoint`, plus top-level
+`verbose`/`quiet`/`log_file`. See `gmail.yaml.example`.
+
+## Interactive REPL
+
+```bash
+gmail --credentials credentials.json repl
+```
+
+Commands inside the REPL: `ls [--unread] [LABEL] [N]`, `tail`, `unread`,
+`query <gmail-search>`, `read <id>`, `use <LABEL>`, `labels`, `profile`,
+`config`, `help`, `exit`. The `ls` command parses args by type — numbers are
+limits, text is a label (`ls work 15` and `ls 15 work` both work).
+
+## Output format
+
+Each message is a JSON object: `id`, `threadId`, `timestamp`, `subject`,
+`from {name,email}`, `to [...]`, `labels [...]`, `snippet`, and (when requested)
+`body`, `attachments [{filename,mimeType,size}]`.
+
+## Migration from gmailtail
+
+- The command is now `gmail` with **subcommands**; the old `gmailtail --tail`
+  becomes `gmail tail --tail`.
+- The config directory moved from `~/.gmailtail/` to `~/.gmail/`.
+- The OAuth scope expanded to `https://mail.google.com/`, so the **first run
+  re-authenticates** (the old cached token is no longer valid).
+- The config-example file is now `gmail.yaml.example`.
 
 ## Development
 
-### Setup development environment
 ```bash
-# Clone the repository
-git clone https://github.com/c4pt0r/gmailtail.git
-cd gmailtail
-
-# Install with development dependencies
 uv sync --extra dev
-
-# Install pre-commit hooks
-uv run pre-commit install
+uv run pytest                 # tests
+uv run black . && uv run isort .
+uv run flake8 gmail/ && uv run mypy gmail/
 ```
-
-### Running tests
-```bash
-# Run all tests
-uv run pytest
-
-# Run tests with coverage
-uv run pytest --cov=gmailtail
-
-# Run specific test file
-uv run pytest tests/test_config.py
-```
-
-### Code formatting and linting
-```bash
-# Format code with black
-uv run black .
-
-# Sort imports with isort
-uv run isort .
-
-# Run flake8 linting
-uv run flake8 gmailtail/
-
-# Run mypy type checking
-uv run mypy gmailtail/
-```
-
-
 
 ## License
 
-MIT License - see LICENSE file for details.
-
+MIT License — see LICENSE file.

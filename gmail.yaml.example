@@ -1,22 +1,22 @@
-# gmailtail configuration file example
-# Copy this file to gmailtail.yaml and customize as needed
+# gmail configuration file example
+# Copy this file to gmail.yaml and customize, then: gmail --config-file gmail.yaml tail
 
 # Authentication settings
 auth:
   # Path to OAuth2 credentials file downloaded from Google Cloud Console
-  credentials_file: ~/.config/gmailtail/credentials.json
-  
-  # Alternative: service account key file for server environments
-  # service_account: ~/.config/gmailtail/service-account.json
-  
-  # Token cache location
-  token_cache: ~/.config/gmailtail/tokens
+  credentials_file: ~/.gmail/credentials.json
 
-# Email filtering settings
+  # Alternative: service account key file for server environments
+  # auth_token: ~/.gmail/service-account.json
+
+  # Cached token location (created after first successful auth)
+  cached_auth_token: ~/.gmail/tokens
+
+# Email filtering settings (used by `gmail tail`)
 filters:
   # Gmail search query (uses Gmail search syntax)
   query: "label:important"
-  
+
   # Alternative individual filters:
   # from: "noreply@github.com"
   # to: "me@example.com"
@@ -33,24 +33,24 @@ output:
   include_attachments: true
   max_body_length: 500
   pretty: false
-  
+
   # Specify which fields to include in output
   # fields: ["id", "subject", "from", "timestamp", "labels"]
 
 # Monitoring behavior
 monitoring:
   poll_interval: 60        # seconds between polls
-  batch_size: 20          # messages per batch
-  tail: true              # continuous monitoring
-  # max_messages: 1000    # stop after processing this many messages
+  batch_size: 20           # messages per batch
+  tail: true               # continuous monitoring
+  # max_messages: 1000     # stop after processing this many messages
 
 # Checkpoint settings
 checkpoint:
-  checkpoint_file: ~/.config/gmailtail/checkpoint
+  checkpoint_file: ~/.gmail/checkpoint
   checkpoint_interval: 120  # save checkpoint every 2 minutes
   resume: true              # resume from last checkpoint on startup
 
 # Logging
 verbose: false
 quiet: false
-# log_file: ~/.config/gmailtail/gmailtail.log
+# log_file: ~/.gmail/gmail.log

@@ -168,7 +168,7 @@ main() {
     print_info ""
     print_info "Next steps:"
     print_info "  1. Set up Google API credentials (see README.md)"
-    print_info "  2. Run: gmail --credentials credentials.json --repl"
+    print_info "  2. Run: gmail --credentials credentials.json repl"
 }
 
 main "$@"
