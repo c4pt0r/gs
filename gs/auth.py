@@ -1,12 +1,14 @@
-"""
-Gmail API authentication module
+"""Google API authentication for gs (Gmail, Calendar, Drive).
+
+A single OAuth consent covers all three APIs via the combined SCOPES. The cached
+token is reused across `gs gmail`, `gs calendar`, and `gs drive`. Interactive
+login happens only through `gs auth login`; other commands require an existing
+token and raise NotAuthenticatedError otherwise.
 """
 
 import os
 import pickle
 import platform
-from pathlib import Path
-from typing import Optional
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -17,155 +19,153 @@ from googleapiclient.discovery import build
 from .config import Config
 
 
-class GmailAuth:
-    """Handle Gmail API authentication"""
+class NotAuthenticatedError(Exception):
+    """Raised when a command needs auth but no valid token is available."""
 
-    # Full mail scope: required for send, permanent delete, label management,
-    # and modifying read state. Changing this invalidates cached tokens, so the
-    # next run re-authenticates.
-    SCOPES = ["https://mail.google.com/"]
+
+class GoogleAuth:
+    """Authenticate to Google APIs and build per-API service clients."""
+
+    # Combined scopes — one consent for Gmail (full), Calendar, and Drive.
+    SCOPES = [
+        "https://mail.google.com/",
+        "https://www.googleapis.com/auth/calendar",
+        "https://www.googleapis.com/auth/drive",
+    ]
 
     def __init__(self, config: Config):
         self.config = config
-        self.service = None
+
+    # -- token cache ------------------------------------------------------
+
+    def _load_cached(self):
+        token_file = self.config.auth.cached_auth_token
+        if self.config.auth.ignore_token:
+            return None
+        if os.path.exists(token_file):
+            with open(token_file, "rb") as fh:
+                return pickle.load(fh)
+        return None
+
+    def _save(self, creds):
+        token_file = self.config.auth.cached_auth_token
+        os.makedirs(os.path.dirname(token_file), exist_ok=True)
+        with open(token_file, "wb") as fh:
+            pickle.dump(creds, fh)
+
+    def logout(self) -> bool:
+        """Delete the cached token. Returns True if a token was removed."""
+        token_file = self.config.auth.cached_auth_token
+        if os.path.exists(token_file):
+            os.remove(token_file)
+            return True
+        return False
+
+    # -- credentials ------------------------------------------------------
+
+    def credentials(self, allow_login: bool = False) -> Credentials:
+        """Return valid credentials.
+
+        Uses the cached token (refreshing if expired). Falls back to a service
+        account key if configured. Runs the interactive OAuth flow only when
+        ``allow_login`` is True; otherwise raises NotAuthenticatedError.
+        """
+        creds = self._load_cached()
+
+        if creds and creds.valid:
+            return creds
+
+        if creds and creds.expired and creds.refresh_token:
+            try:
+                creds.refresh(Request())
+                self._save(creds)
+                return creds
+            except Exception as e:
+                if not self.config.quiet:
+                    print(f"Failed to refresh token: {e}")
+
+        # Service accounts are non-interactive.
+        if self.config.auth.auth_token:
+            return self._service_account_credentials()
+
+        if allow_login:
+            creds = self._oauth_login()
+            self._save(creds)
+            return creds
+
+        raise NotAuthenticatedError(
+            "Not authenticated. Run: gs auth login --credentials <file.json>"
+        )
+
+    def login(self) -> Credentials:
+        """Force interactive (or service-account) login and cache the token."""
+        if self.config.auth.auth_token:
+            creds = self._service_account_credentials()
+        else:
+            creds = self._oauth_login()
+        self._save(creds)
+        return creds
+
+    def status(self):
+        """Return valid credentials without logging in, or None if unavailable."""
+        try:
+            return self.credentials(allow_login=False)
+        except NotAuthenticatedError:
+            return None
+
+    # -- service builders -------------------------------------------------
+
+    def service(self, api: str, version: str, allow_login: bool = False):
+        """Build a googleapiclient resource for the given API."""
+        return build(api, version, credentials=self.credentials(allow_login))
+
+    # -- credential acquisition -------------------------------------------
+
+    def _service_account_credentials(self) -> Credentials:
+        path = self.config.auth.auth_token
+        if not os.path.exists(path):
+            raise NotAuthenticatedError(f"Service account file not found: {path}")
+        return service_account.Credentials.from_service_account_file(
+            path, scopes=self.SCOPES
+        )
 
     def _is_headless_environment(self) -> bool:
-        """Detect if running in a headless environment"""
-        # Check for SSH connection
         if os.environ.get("SSH_CLIENT") or os.environ.get("SSH_TTY"):
             return True
-
-        # Check for DISPLAY variable on Linux systems (not macOS)
         if (
             os.name == "posix"
             and platform.system() == "Linux"
             and not os.environ.get("DISPLAY")
         ):
             return True
-
-        # Check for common headless indicators
         if os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"):
             return True
-
-        # Check if we're in a Docker container
         if os.path.exists("/.dockerenv"):
             return True
-
         return False
 
-    def authenticate(self):
-        """Authenticate and build Gmail service"""
-        creds = None
-        token_file = self.config.auth.cached_auth_token
-
-        # Skip token loading if ignore_token flag is set
-        if not self.config.auth.ignore_token:
-            # Try to load existing token
-            if os.path.exists(token_file):
-                with open(token_file, "rb") as token:
-                    creds = pickle.load(token)
-        elif not self.config.quiet:
-            print("Ignoring cached token due to --ignore-token flag")
-
-        # If there are no (valid) credentials available, let the user log in.
-        if not creds or not creds.valid:
-            if (
-                creds
-                and creds.expired
-                and creds.refresh_token
-                and not self.config.auth.ignore_token
-            ):
-                try:
-                    creds.refresh(Request())
-                except Exception as e:
-                    if not self.config.quiet:
-                        print(f"Failed to refresh token: {e}")
-                    creds = None
-
-            if not creds:
-                creds = self._get_new_credentials()
-
-            # Save the credentials for the next run
-            os.makedirs(os.path.dirname(token_file), exist_ok=True)
-            with open(token_file, "wb") as token:
-                pickle.dump(creds, token)
-
-        # Build the Gmail service
-        self.service = build("gmail", "v1", credentials=creds)
-        return self.service
-
-    def _get_new_credentials(self) -> Credentials:
-        """Get new credentials using available authentication methods"""
-        # Try service account first
-        if self.config.auth.auth_token:
-            return self._authenticate_service_account()
-
-        # Try OAuth2 credentials
+    def _oauth_login(self) -> Credentials:
         credentials_file = self.config.auth.credentials
-
-        if credentials_file and os.path.exists(credentials_file):
-            return self._authenticate_oauth2(credentials_file)
-
-        raise Exception(
-            "No valid authentication method found. Please provide either:\n"
-            "  --credentials <oauth2_credentials.json>\n"
-            "  --auth-token <service_account.json>"
-        )
-
-    def _authenticate_service_account(self) -> Credentials:
-        """Authenticate using service account"""
-        service_account_file = self.config.auth.auth_token
-
-        if not os.path.exists(service_account_file):
-            raise Exception(f"Service account file not found: {service_account_file}")
-
-        creds = service_account.Credentials.from_service_account_file(
-            service_account_file, scopes=self.SCOPES
-        )
-
-        return creds
-
-    def _authenticate_oauth2(self, credentials_file: str) -> Credentials:
-        """Authenticate using OAuth2 flow"""
-        if not os.path.exists(credentials_file):
-            raise Exception(f"Credentials file not found: {credentials_file}")
+        if not credentials_file or not os.path.exists(credentials_file):
+            raise NotAuthenticatedError(
+                "No OAuth2 credentials file. Provide --credentials <file.json> "
+                "(or --auth-token for a service account)."
+            )
 
         flow = InstalledAppFlow.from_client_secrets_file(credentials_file, self.SCOPES)
-
-        # Check if headless mode is forced or auto-detected
         use_headless = (
             self.config.auth.force_headless or self._is_headless_environment()
         )
 
         if use_headless:
             if not self.config.quiet:
-                if self.config.auth.force_headless:
-                    print("Forced headless mode - using console-based authentication")
-                else:
-                    print(
-                        "Headless environment detected - using console-based authentication"
-                    )
-            # For headless environments, we need to run the flow differently
-            # Since run_console() doesn't exist, we'll use run_local_server with manual auth
+                print("Headless mode - using console-based authentication")
             try:
-                creds = flow.run_local_server(port=0, open_browser=False)
+                return flow.run_local_server(port=0, open_browser=False)
             except Exception:
-                # If local server fails, provide manual instructions
                 auth_url, _ = flow.authorization_url(prompt="consent")
-                print(
-                    f"Please go to this URL and authorize the application: {auth_url}"
-                )
+                print(f"Go to this URL and authorize the application: {auth_url}")
                 auth_code = input("Enter the authorization code: ")
                 flow.fetch_token(code=auth_code)
-                creds = flow.credentials
-        else:
-            # Use local server for environments with browser access
-            creds = flow.run_local_server(port=0)
-
-        return creds
-
-    def get_service(self):
-        """Get authenticated Gmail service"""
-        if not self.service:
-            self.authenticate()
-        return self.service
+                return flow.credentials
+        return flow.run_local_server(port=0)

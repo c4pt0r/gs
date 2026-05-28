@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Command line interface for gmail — a Gmail management and monitoring CLI.
+Command line interface for gs — a Google Suite CLI (Gmail, Calendar, Drive).
 
-`cli` is a click group; each subcommand lives in gmail/commands/ and is
-registered here. Authentication and global options live on the group and are
-stored in ``ctx.obj`` so every subcommand can build a Config from them.
+`cli` is the top-level click group. It registers sibling subgroups (auth, gmail,
+calendar, drive). Authentication and global options live on the top group and are
+stored in ``ctx.obj`` (which click propagates to nested subcommands) so every
+command can build a Config from them.
 """
 
 import os
@@ -47,39 +48,33 @@ from . import __version__
     "--config-file", type=click.Path(exists=True), help="Configuration file path"
 )
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output mode")
-@click.option("--quiet", is_flag=True, help="Quiet mode, only output email JSON")
+@click.option("--quiet", is_flag=True, help="Quiet mode, only output JSON")
 @click.option("--log-file", type=click.Path(), help="Log file path")
 @click.pass_context
 def cli(ctx, **kwargs):
-    """gmail - Manage and monitor Gmail from the command line.
+    """gs - a command-line tool for Google Suite (Gmail, Calendar, Drive).
 
     \b
     Examples:
-        gmail tail --from "noreply@github.com"
-        gmail send --to a@b.com --subject Hi --body "hello" --attach report.pdf
-        gmail read <id> --mark-read
-        gmail rm <id>
-        gmail label create Work
-        gmail mv <id> --to Work --from INBOX
-        gmail repl
+        gs auth login --credentials credentials.json
+        gs gmail tail --from "noreply@github.com"
+        gs gmail send --to a@b.com --subject Hi --body hello --attach f.pdf
+        gs calendar events --from today --to +7d
+        gs drive ls
+        gs drive upload report.pdf
     """
     ctx.ensure_object(dict)
     ctx.obj.update(kwargs)
 
 
-# Register subcommands
-from .commands.tail import tail  # noqa: E402
-from .commands.repl import repl  # noqa: E402
-from .commands.read import read  # noqa: E402
-from .commands.mark import mark  # noqa: E402
-from .commands.send import send  # noqa: E402
-from .commands.rm import rm  # noqa: E402
-from .commands.mv import mv  # noqa: E402
-from .commands.label import label  # noqa: E402
-from .commands.profile import profile  # noqa: E402
+# Register sibling subgroups
+from .commands.auth import auth  # noqa: E402
+from .commands.gmail_group import gmail  # noqa: E402
+from .commands.calendar import calendar  # noqa: E402
+from .commands.drive import drive  # noqa: E402
 
-for _cmd in (tail, repl, read, mark, send, rm, mv, label, profile):
-    cli.add_command(_cmd)
+for _group in (auth, gmail, calendar, drive):
+    cli.add_command(_group)
 
 
 def main():

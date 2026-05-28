@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional, Generator
 from dateutil.parser import parse as parse_date
 
 from .config import Config
-from .auth import GmailAuth
+from .auth import GoogleAuth
 from .cache import MessageCache
 
 
@@ -18,7 +18,7 @@ class GmailClient:
 
     def __init__(self, config: Config):
         self.config = config
-        self.auth = GmailAuth(config)
+        self.auth = GoogleAuth(config)
         self.service = None
         self.cache = (
             MessageCache(config.cache.cache_file) if config.cache.enabled else None
@@ -26,7 +26,7 @@ class GmailClient:
 
     def connect(self):
         """Connect to Gmail API"""
-        self.service = self.auth.authenticate()
+        self.service = self.auth.service("gmail", "v1")
 
         # Initialize cache if enabled
         if self.cache and self.config.cache.clear_cache:

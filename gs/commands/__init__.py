@@ -1,4 +1,4 @@
-"""Subcommand implementations for the gmail CLI."""
+"""Subcommand implementations for the gs CLI."""
 
 from ..config import Config
 
@@ -13,19 +13,33 @@ def build_config(ctx, **kwargs) -> Config:
     return Config.from_cli_args(**merged)
 
 
-def get_service(ctx):
-    """Authenticate from the group's shared options and return a raw Gmail
-    service resource. Used by write commands that don't need the read client."""
-    from ..auth import GmailAuth
+def get_auth(ctx, **kwargs):
+    """Return a GoogleAuth configured from shared + subcommand options."""
+    from ..auth import GoogleAuth
 
-    config = build_config(ctx)
+    config = build_config(ctx, **kwargs)
     config.ensure_directories()
-    return GmailAuth(config).authenticate()
+    return GoogleAuth(config)
+
+
+def get_service(ctx):
+    """Authenticated Gmail service (raw resource) for write commands."""
+    return get_auth(ctx).service("gmail", "v1")
+
+
+def get_calendar_service(ctx):
+    """Authenticated Calendar v3 service."""
+    return get_auth(ctx).service("calendar", "v3")
+
+
+def get_drive_service(ctx):
+    """Authenticated Drive v3 service."""
+    return get_auth(ctx).service("drive", "v3")
 
 
 def get_client(ctx):
     """Return a connected GmailClient (read + parse), for commands that display
-    message content (e.g. `gmail read`)."""
+    message content (e.g. `gs gmail read`)."""
     from ..client import GmailClient
 
     config = build_config(ctx)
