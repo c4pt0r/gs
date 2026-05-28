@@ -15,11 +15,11 @@ test: ## Run tests
 	uv run pytest
 
 test-cov: ## Run tests with coverage
-	uv run pytest --cov=gmailtail --cov-report=html --cov-report=term
+	uv run pytest --cov=gmail --cov-report=html --cov-report=term
 
 lint: ## Run linting
-	uv run flake8 gmailtail/
-	uv run mypy gmailtail/
+	uv run flake8 gmail/
+	uv run mypy gmail/
 
 format: ## Format code
 	uv run black .
@@ -44,11 +44,11 @@ build: ## Build the package
 publish: ## Publish to PyPI
 	uv publish
 
-run: ## Run gmailtail with example config
-	uv run gmailtail --help
+run: ## Run gmail with example config
+	uv run gmail --help
 
 example: ## Show example usage
 	@echo "Example usage:"
-	@echo "  uv run gmailtail --credentials credentials.json --follow"
-	@echo "  uv run gmailtail --from 'noreply@github.com' --follow"
-	@echo "  uv run gmailtail --config-file gmailtail.yaml"
+	@echo "  uv run gmail --credentials credentials.json --follow"
+	@echo "  uv run gmail --from 'noreply@github.com' --follow"
+	@echo "  uv run gmail --config-file gmail.yaml"

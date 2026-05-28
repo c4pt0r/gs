@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "gmailtail"
+name = "gmail"
 version = "0.1.0"
-description = "A command-line tool to monitor Gmail messages and output them as JSON"
+description = "A command-line tool to manage and monitor Gmail: tail, send, delete, mark read, and manage labels"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -59,20 +59,20 @@ test = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/gmailtail"
-Repository = "https://github.com/yourusername/gmailtail.git"
-Issues = "https://github.com/yourusername/gmailtail/issues"
-Documentation = "https://github.com/yourusername/gmailtail#readme"
+Homepage = "https://github.com/c4pt0r/gmail"
+Repository = "https://github.com/c4pt0r/gmail.git"
+Issues = "https://github.com/c4pt0r/gmail/issues"
+Documentation = "https://github.com/c4pt0r/gmail#readme"
 
 [project.scripts]
-gmailtail = "gmailtail.cli:main"
+gmail = "gmail.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["gmailtail"]
+packages = ["gmail"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "/gmailtail",
+    "/gmail",
     "/README.md",
     "/LICENSE",
 ]
@@ -101,7 +101,7 @@ extend-exclude = '''
 profile = "black"
 multi_line_output = 3
 line_length = 88
-known_first_party = ["gmailtail"]
+known_first_party = ["gmail"]
 
 # MyPy configuration
 [tool.mypy]
@@ -133,7 +133,7 @@ minversion = "7.0"
 addopts = [
     "--strict-markers",
     "--strict-config",
-    "--cov=gmailtail",
+    "--cov=gmail",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
@@ -145,7 +145,7 @@ python_functions = ["test_*"]
 
 # Coverage configuration
 [tool.coverage.run]
-source = ["gmailtail"]
+source = ["gmail"]
 omit = [
     "*/tests/*",
     "*/test_*.py",
