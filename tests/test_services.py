@@ -7,8 +7,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from gmail.messages import MessageService, build_raw_message
-from gmail.labels import LabelService
+from gs.messages import MessageService, build_raw_message
+from gs.labels import LabelService
 
 
 def make_service():

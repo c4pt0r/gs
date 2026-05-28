@@ -5,14 +5,14 @@ import json
 import os
 import tempfile
 
-from gmail.config import Config
-from gmail.formatter import OutputFormatter
+from gs.config import Config
+from gs.formatter import OutputFormatter
 
 
 def test_default_config():
     config = Config()
-    assert config.auth.cached_auth_token.endswith(".gmail/tokens")
-    assert config.checkpoint.checkpoint_file.endswith(".gmail/checkpoint")
+    assert config.auth.cached_auth_token.endswith(".gs/tokens")
+    assert config.checkpoint.checkpoint_file.endswith(".gs/checkpoint")
     assert config.monitoring.poll_interval == 30
 
 

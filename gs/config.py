@@ -17,7 +17,7 @@ class AuthConfig:
     credentials: Optional[str] = None
     auth_token: Optional[str] = None
     cached_auth_token: str = field(
-        default_factory=lambda: os.path.expanduser("~/.gmail/tokens")
+        default_factory=lambda: os.path.expanduser("~/.gs/tokens")
     )
     force_headless: bool = False
     ignore_token: bool = False
@@ -42,7 +42,7 @@ class CheckpointConfig:
     """Checkpoint configuration"""
 
     checkpoint_file: str = field(
-        default_factory=lambda: os.path.expanduser("~/.gmail/checkpoint")
+        default_factory=lambda: os.path.expanduser("~/.gs/checkpoint")
     )
     checkpoint_interval: int = 60
     resume: bool = False
@@ -67,7 +67,7 @@ class CacheConfig:
 
     enabled: bool = True
     cache_file: str = field(
-        default_factory=lambda: os.path.expanduser("~/.gmail/cache.db")
+        default_factory=lambda: os.path.expanduser("~/.gs/cache.db")
     )
     max_age_days: int = 30
     cleanup_interval: int = 86400  # 24 hours in seconds

@@ -29,7 +29,7 @@ from . import __version__
 @click.option(
     "--cached-auth-token",
     type=click.Path(),
-    default=lambda: os.path.expanduser("~/.gmail/tokens"),
+    default=lambda: os.path.expanduser("~/.gs/tokens"),
     help="Cached authentication token file path",
 )
 @click.option(

@@ -5,21 +5,21 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
-from gmail.cli import cli
+from gs.cli import cli
 
 
 def run(args, service=None):
     """Invoke the CLI with get_service/get_client patched to return `service`."""
     service = service or MagicMock()
     runner = CliRunner()
-    with patch("gmail.commands.get_service", return_value=service), patch(
-        "gmail.commands.mark.get_service", return_value=service
-    ), patch("gmail.commands.rm.get_service", return_value=service), patch(
-        "gmail.commands.mv.get_service", return_value=service
+    with patch("gs.commands.get_service", return_value=service), patch(
+        "gs.commands.mark.get_service", return_value=service
+    ), patch("gs.commands.rm.get_service", return_value=service), patch(
+        "gs.commands.mv.get_service", return_value=service
     ), patch(
-        "gmail.commands.send.get_service", return_value=service
+        "gs.commands.send.get_service", return_value=service
     ), patch(
-        "gmail.commands.label.get_service", return_value=service
+        "gs.commands.label.get_service", return_value=service
     ):
         result = runner.invoke(cli, args)
     return result, service
@@ -60,7 +60,7 @@ def test_rm_permanently_with_yes():
 def test_rm_permanently_aborts_without_confirmation():
     runner = CliRunner()
     service = MagicMock()
-    with patch("gmail.commands.rm.get_service", return_value=service):
+    with patch("gs.commands.rm.get_service", return_value=service):
         result = runner.invoke(cli, ["rm", "m1", "--permanently"], input="n\n")
     assert result.exit_code != 0
     service.users().messages().delete.assert_not_called()

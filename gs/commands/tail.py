@@ -26,7 +26,7 @@ from ..monitor import Monitor
 @click.option(
     "--checkpoint-file",
     type=click.Path(),
-    default=lambda: os.path.expanduser("~/.gmail/checkpoint"),
+    default=lambda: os.path.expanduser("~/.gs/checkpoint"),
     help="Checkpoint file path",
 )
 @click.option(
