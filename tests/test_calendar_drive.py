@@ -86,6 +86,33 @@ def test_parse_when_relative_returns_utc():
     assert parse_when("+7d").endswith("Z")
 
 
+def test_parse_when_today_is_local_midnight():
+    from datetime import datetime, timezone
+
+    # "today" must anchor to LOCAL midnight, expressed in UTC.
+    local_now = datetime.now().astimezone()
+    expected = (
+        local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+        .astimezone(timezone.utc)
+        .strftime("%Y-%m-%dT%H:%M:%SZ")
+    )
+    assert parse_when("today") == expected
+
+
+def test_add_event_naive_start_gets_local_offset():
+    # A naive datetime (no offset) and no --timezone must still carry a zone,
+    # otherwise the Calendar API rejects it.
+    s = svc()
+    CalendarService(s).add_event(
+        summary="Mtg", start="2026-06-01T10:00:00", end="2026-06-01T11:00:00"
+    )
+    _, kwargs = s.events().insert.call_args
+    dt = kwargs["body"]["start"]["dateTime"]
+    # Has an explicit offset (±HH:MM) or Z — not a bare naive timestamp.
+    assert dt.endswith("Z") or dt[-6] in "+-"
+    assert "timeZone" not in kwargs["body"]["start"]
+
+
 # --------------------------------------------------------------------------
 # DriveService
 # --------------------------------------------------------------------------

@@ -16,17 +16,27 @@ _DATE_ONLY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _RELATIVE = re.compile(r"^([+-]\d+)([dhm])$")
 
 
+def _local_tz():
+    """The machine's local timezone (a fixed-offset tzinfo for the current moment)."""
+    return datetime.now().astimezone().tzinfo
+
+
 def parse_when(value: str) -> str:
-    """Return an RFC 3339 UTC timestamp for a human time expression."""
+    """Return an RFC 3339 UTC timestamp for a human time expression.
+
+    "today"/"tomorrow" anchor to *local* midnight; "now" and relative offsets
+    (+7d, -2h) are relative to the current instant.
+    """
     v = value.strip().lower()
     now = datetime.now(timezone.utc)
+    local_now = now.astimezone(_local_tz())
 
     if v in ("now",):
         dt = now
     elif v == "today":
-        dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        dt = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
     elif v == "tomorrow":
-        dt = (now + timedelta(days=1)).replace(
+        dt = (local_now + timedelta(days=1)).replace(
             hour=0, minute=0, second=0, microsecond=0
         )
     else:
@@ -58,14 +68,27 @@ def _to_z(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _has_offset(value: str) -> bool:
+    """True if a timed value already carries a UTC offset or Z."""
+    return value.endswith("Z") or re.search(r"[+-]\d{2}:\d{2}$", value) is not None
+
+
 def _time_field(value: str, tz: Optional[str]) -> Dict[str, str]:
-    """Build a Calendar start/end object: all-day date vs timed dateTime."""
+    """Build a Calendar start/end object: all-day date vs timed dateTime.
+
+    For timed values, ensure the API always gets a zone: an explicit
+    ``--timezone`` wins; an offset already in the string is kept as-is; a naive
+    value is interpreted as local time and emitted with the local offset (the
+    API rejects a zoneless dateTime).
+    """
     if _DATE_ONLY.match(value):
         return {"date": value}
-    field = {"dateTime": value}
     if tz:
-        field["timeZone"] = tz
-    return field
+        return {"dateTime": value, "timeZone": tz}
+    if _has_offset(value):
+        return {"dateTime": value}
+    local = parse_date(value).replace(tzinfo=_local_tz())
+    return {"dateTime": local.isoformat()}
 
 
 class CalendarService:

@@ -70,6 +70,11 @@ gs calendar add --summary Coffee --start 2026-06-01T10:00:00-07:00 --end 2026-06
 gs calendar rm <event-id...>
 ```
 
+Timezones: `today`/`tomorrow` use **local** midnight; `now`/`+7d`/`-2h` are
+relative. A `--start/--end` with an offset (`…-07:00`) or `Z` is honored as-is; a
+naive value (no offset) is treated as **local** time unless `--timezone` is given.
+Gmail message `timestamp` is local time with an explicit offset.
+
 ## drive
 
 ```bash

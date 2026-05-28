@@ -4,9 +4,31 @@
 import json
 import os
 import tempfile
+from datetime import datetime, timezone
 
 from gs.config import Config
+from gs.client import GmailClient
 from gs.formatter import OutputFormatter
+
+
+def test_parsed_timestamp_is_timezone_aware():
+    """The parsed `timestamp` must carry an offset (not a bare naive string)."""
+    config = Config()
+    config.cache.enabled = False
+    client = GmailClient(config)
+    # 2026-05-28T15:50:53Z in epoch milliseconds.
+    epoch_ms = int(
+        datetime(2026, 5, 28, 15, 50, 53, tzinfo=timezone.utc).timestamp() * 1000
+    )
+    parsed = client.parse_message(
+        {"id": "x", "threadId": "t", "internalDate": str(epoch_ms), "payload": {}}
+    )
+    ts = parsed["timestamp"]
+    assert ts.endswith("Z") or ts[-6] in "+-"
+    # Same instant regardless of the machine's local zone.
+    assert datetime.fromisoformat(ts).astimezone(timezone.utc) == datetime(
+        2026, 5, 28, 15, 50, 53, tzinfo=timezone.utc
+    )
 
 
 def test_default_config():

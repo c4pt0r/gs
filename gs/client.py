@@ -225,10 +225,13 @@ class GmailClient:
             "sizeEstimate": message.get("sizeEstimate"),
         }
 
-        # Parse timestamp
+        # Parse timestamp (internalDate is epoch ms, UTC). Emit local time with
+        # an explicit offset so the zone is unambiguous.
         if "internalDate" in message:
             timestamp = int(message["internalDate"]) / 1000
-            parsed["timestamp"] = datetime.fromtimestamp(timestamp).isoformat()
+            parsed["timestamp"] = (
+                datetime.fromtimestamp(timestamp).astimezone().isoformat()
+            )
 
         # Parse headers
         headers = {}
