@@ -1,6 +1,6 @@
 ---
 name: using-gs
-description: Use when managing Google Suite from the command line with the `gs` CLI — Gmail (tail/stream as JSON, send with attachments, delete, mark read/unread, labels, move), Google Calendar (list calendars, list/create/delete events), Google Drive (list/upload/download/mkdir/delete), or authentication (gs auth login/logout/status). Covers the nested subcommand structure, combined OAuth scope, and per-command options.
+description: Use when managing Google Suite from the command line with the `gs` CLI — Gmail (tail/stream as JSON, send with attachments, delete, mark read/unread, labels, move), Google Calendar (list calendars, list/create/delete events, invite attendees), Google Drive (list/upload/download/mkdir/delete), or authentication (gs auth login/logout/status). Covers the nested subcommand structure, combined OAuth scope, and per-command options.
 ---
 
 # Using gs
@@ -65,6 +65,8 @@ gs calendar events --from today --to +7d       # window: ISO or now/today/tomorr
 gs calendar add --summary "Mtg" --start 2026-06-01T10:00:00Z --end 2026-06-01T11:00:00Z \
   [--calendar <id>] [--location ..] [--timezone America/New_York]
 gs calendar add --summary Holiday --start 2026-06-01 --end 2026-06-02   # date-only = all-day
+gs calendar add --summary Coffee --start 2026-06-01T10:00:00-07:00 --end 2026-06-01T11:00:00-07:00 \
+  --attendee a@x.com --attendee b@y.com    # repeatable; emails invitations (sendUpdates=all)
 gs calendar rm <event-id...>
 ```
 

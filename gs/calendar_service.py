@@ -105,6 +105,7 @@ class CalendarService:
         description: Optional[str] = None,
         location: Optional[str] = None,
         timezone: Optional[str] = None,
+        attendees: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         body = {
             "summary": summary,
@@ -115,7 +116,15 @@ class CalendarService:
             body["description"] = description
         if location:
             body["location"] = location
-        return self.service.events().insert(calendarId=calendar_id, body=body).execute()
+        if attendees:
+            body["attendees"] = [{"email": e} for e in attendees]
+        # Email invitations to attendees, but stay silent for solo events.
+        send_updates = "all" if attendees else "none"
+        return (
+            self.service.events()
+            .insert(calendarId=calendar_id, body=body, sendUpdates=send_updates)
+            .execute()
+        )
 
     def delete_event(self, event_id: str, calendar_id: str = "primary"):
         return (

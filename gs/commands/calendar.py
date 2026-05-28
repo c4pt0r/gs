@@ -52,11 +52,17 @@ def calendar_events(ctx, calendar_id, time_from, time_to, max_results):
 @click.option("--description", help="Event description")
 @click.option("--location", help="Event location")
 @click.option("--timezone", help="IANA timezone (e.g. America/New_York)")
+@click.option(
+    "--attendee",
+    "attendees",
+    multiple=True,
+    help="Invite an attendee by email (repeatable; emails an invitation)",
+)
 @click.pass_context
 def calendar_add(
-    ctx, summary, start, end, calendar_id, description, location, timezone
+    ctx, summary, start, end, calendar_id, description, location, timezone, attendees
 ):
-    """Create an event."""
+    """Create an event (optionally inviting attendees)."""
     created = CalendarService(get_calendar_service(ctx)).add_event(
         summary=summary,
         start=start,
@@ -65,8 +71,11 @@ def calendar_add(
         description=description,
         location=location,
         timezone=timezone,
+        attendees=list(attendees),
     )
     click.echo(f"Created event {created.get('id')}: {created.get('summary')}")
+    if attendees:
+        click.echo(f"Invited: {', '.join(attendees)}")
 
 
 @calendar.command("rm")

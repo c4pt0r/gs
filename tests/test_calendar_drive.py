@@ -58,6 +58,19 @@ def test_add_event_all_day_uses_date():
     assert kwargs["body"]["start"] == {"date": "2026-06-01"}
 
 
+def test_add_event_with_attendees_sends_invites():
+    s = svc()
+    CalendarService(s).add_event(
+        summary="Coffee",
+        start="2026-05-29T10:00:00-07:00",
+        end="2026-05-29T11:00:00-07:00",
+        attendees=["guest@example.com"],
+    )
+    _, kwargs = s.events().insert.call_args
+    assert kwargs["body"]["attendees"] == [{"email": "guest@example.com"}]
+    assert kwargs["sendUpdates"] == "all"
+
+
 def test_delete_event():
     s = svc()
     CalendarService(s).delete_event("ev1")
