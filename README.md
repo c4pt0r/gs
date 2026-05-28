@@ -1,199 +1,158 @@
-# gmail
+# gs
 
-A command-line tool to **manage and monitor Gmail**. Stream messages as JSON for
-automation (`gmail tail`), and send, delete, label, and organize mail directly
-from the terminal.
+`gs` is a command-line tool for **Google Suite** — manage Gmail, Google Calendar,
+and Google Drive from one CLI. It's organized as nested subcommands:
+`gs <service> <action>`.
 
-> Formerly `gmailtail` (a read-only monitor). It is now a full management CLI
-> built around subcommands. See [Migration](#migration-from-gmailtail).
+```
+gs auth login|logout|status          # authentication (one token for all services)
+gs gmail tail|send|read|mark|rm|mv|label|profile|repl
+gs calendar ls|events|add|rm
+gs drive ls|upload|download|mkdir|rm
+```
+
+> Evolved from `gmailtail` → `gmail` → `gs`. The old `gmailtail --tail` is now
+> `gs gmail tail --tail`. See [Migration](#migration).
 
 ## Features
 
-- **Real-time monitoring** — stream new mail as JSON with `gmail tail` (like `tail -f`)
-- **Send mail** — compose and send, with attachments and HTML bodies
-- **Delete** — move to Trash (default, reversible) or permanently delete
-- **Mark read / unread** — change read state in bulk
-- **Label management** — create, delete, rename, list labels
-- **Move between labels** — add/remove labels on messages
-- **Flexible filtering** — sender, subject, labels, attachments, Gmail search syntax
-- **Multiple output formats** — JSON, JSON Lines, compact
-- **Interactive REPL** — explore and query your account
-- **Checkpoints & config files** — resume monitoring; YAML config for complex setups
+- **One sign-in** — a single OAuth consent covers Gmail, Calendar, and Drive
+- **Gmail** — stream/monitor as JSON, send (with attachments), delete, mark
+  read/unread, manage labels, move messages, interactive REPL
+- **Calendar** — list calendars, list events (relative time windows), create &
+  delete events
+- **Drive** — list/search, upload, download, create folders, delete (trash or permanent)
 
 ## Quick Start
 
 ```bash
-# Install (uv recommended)
-git clone https://github.com/c4pt0r/gmail.git
-cd gmail
-uv sync
-uv pip install -e .
+git clone https://github.com/c4pt0r/gs.git
+cd gs
+uv sync && uv pip install -e .
 
-# First run authenticates in the browser and caches a token at ~/.gmail/tokens
-gmail --credentials credentials.json profile
+# Authenticate once (opens a browser, caches a token at ~/.gs/tokens)
+gs auth login --credentials credentials.json
+
+gs gmail tail --tail
+gs calendar events --from today --to +7d
+gs drive ls
 ```
 
 ## Authentication
 
-`gmail` requires the full Gmail scope (`https://mail.google.com/`) because it can
-send and delete mail.
+`gs` uses one combined scope set (Gmail full + Calendar + Drive), so a single
+`gs auth login` authorizes everything.
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/), create/select
-   a project, and **enable the Gmail API**.
+1. In [Google Cloud Console](https://console.cloud.google.com/): create/select a
+   project and **enable the Gmail API, Google Calendar API, and Google Drive API**.
 2. Create credentials → **OAuth 2.0 Client ID** → *Desktop application*; download the JSON.
-3. First run: `gmail --credentials credentials.json profile`. A browser opens for
-   consent; the token is cached at `~/.gmail/tokens` and reused afterward.
+3. `gs auth login --credentials credentials.json` (a browser opens once; the token
+   is cached at `~/.gs/tokens`).
 
-| Option | Use |
-|--------|-----|
-| `--credentials PATH` | OAuth2 client JSON (interactive/personal use) |
-| `--auth-token PATH` | Service account key (servers; needs domain-wide delegation) |
-| `--cached-auth-token PATH` | Token cache location (default `~/.gmail/tokens`) |
-| `--force-headless` | Console-based auth when no browser is available (e.g. SSH) |
-| `--ignore-token` | Ignore the cached token and re-authenticate |
+| Command | |
+|---------|--|
+| `gs auth login --credentials <file>` | Authenticate and cache a token |
+| `gs auth login --auth-token <key.json>` | Service account (servers; domain-wide delegation) |
+| `gs auth login --force-headless` | Console-based auth (no browser, e.g. SSH) |
+| `gs auth status` | Show whether logged in and as which account |
+| `gs auth logout` | Remove the cached token |
 
-These (plus `--verbose`, `--quiet`, `--config-file`, `--log-file`) are **global
-options** and go *before* the subcommand:
+Other commands reuse the cached token; if it's missing they tell you to run
+`gs auth login`.
+
+### Global options
+
+`--credentials`, `--auth-token`, `--cached-auth-token`, `--ignore-token`,
+`--config-file`, `--verbose`, `--quiet` are **global** and go *before* the
+service/command:
 
 ```bash
-gmail --credentials credentials.json tail --from "noreply@github.com"
+gs --config-file gs.yaml gmail tail
 ```
 
-## Commands
-
-| Command | Purpose |
-|---------|---------|
-| `gmail tail` | Stream/monitor messages as JSON (the original behavior) |
-| `gmail send` | Compose and send mail (attachments, HTML) |
-| `gmail read <id>` | Display one message in full (optionally `--mark-read`) |
-| `gmail mark <id...>` | Mark messages `--read` or `--unread` |
-| `gmail rm <id...>` | Trash (default) or `--permanently` delete |
-| `gmail mv <id...>` | Move/tag between labels (`--to`, `--from`) |
-| `gmail label ...` | `ls` / `create` / `rm` / `rename` labels |
-| `gmail profile` | Show account info |
-| `gmail repl` | Interactive shell |
-
-Run `gmail <command> --help` for full options.
-
-### Monitoring — `gmail tail`
+## Gmail — `gs gmail`
 
 ```bash
-# Stream all new mail continuously
-gmail tail --tail
+# Monitor / stream as JSON
+gs gmail tail --tail
+gs gmail tail --once --format json-lines | jq -r '.from.email + ": " + .subject'
+gs gmail tail --from "noreply@github.com" --query "subject:alert" --tail
 
-# One-shot dump (run once, then exit) — good for piping
-gmail tail --once --format json-lines
+# Send (attachments repeatable, HTML, stdin body)
+gs gmail send --to a@x.com --subject "Hi" --body "hello"
+gs gmail send --to "a@x.com,b@y.com" --cc boss@x.com --subject Report \
+  --body "see attached" --attach report.pdf --attach data.csv
+echo body | gs gmail send --to a@x.com --subject Piped --body-file -
 
-# Filters
-gmail tail --from "noreply@github.com" --tail
-gmail tail --query "subject:alert OR subject:error" --tail
-gmail tail --unread-only --has-attachment --include-attachments --tail
-gmail tail --since "2025-01-01T00:00:00Z" --once
+# Read state, display, delete
+gs gmail read <id> --mark-read
+gs gmail mark <id1> <id2> --read        # or --unread
+gs gmail rm <id>                        # Trash (reversible)
+gs gmail rm <id> --permanently --yes    # hard delete
 
-# Output control
-gmail tail --include-body --max-body-length 500 --once
-gmail tail --fields "id,subject,from,timestamp" --format json-lines --once
+# Labels & move
+gs gmail label ls
+gs gmail label create Work
+gs gmail mv <id> --to Work --from INBOX  # archive INBOX → Work
 
-# Resume from checkpoint
-gmail tail --resume --tail
+# Interactive
+gs gmail repl
 ```
 
-Pipe `json-lines` into `jq`:
+## Calendar — `gs calendar`
 
 ```bash
-gmail tail --format json-lines --tail | jq -r '.from.email + ": " + .subject'
-gmail tail --format json-lines --once | jq -r '.from.email' | sort | uniq -c | sort -nr
+gs calendar ls                                  # list calendars
+gs calendar events --from today --to +7d        # events in a window
+gs calendar events --calendar primary --max 50
+
+# Create an event (ISO datetime, or YYYY-MM-DD for all-day)
+gs calendar add --summary "Meeting" \
+  --start 2026-06-01T10:00:00Z --end 2026-06-01T11:00:00Z \
+  --location "Room 1" --timezone America/New_York
+gs calendar rm <event-id>
 ```
 
-### Sending — `gmail send`
+Time inputs for `--from/--to` accept ISO 8601 or shortcuts: `now`, `today`,
+`tomorrow`, `+7d`, `-2h`.
+
+## Drive — `gs drive`
 
 ```bash
-# Simple text email
-gmail send --to alice@example.com --subject "Hi" --body "Hello there"
-
-# Multiple recipients, cc/bcc, attachments (repeat --attach)
-gmail send --to "a@x.com,b@y.com" --cc boss@x.com --subject "Report" \
-  --body "See attached." --attach report.pdf --attach data.csv
-
-# HTML body, or read the body from a file / stdin
-gmail send --to a@x.com --subject "Newsletter" --html --body "<h1>Hi</h1>"
-echo "body text" | gmail send --to a@x.com --subject "Piped" --body-file -
-```
-
-### Read state — `gmail mark` / `gmail read`
-
-```bash
-gmail mark 18c5b2a4f2e1d8f0 --read
-gmail mark m1 m2 m3 --unread          # bulk
-gmail read 18c5b2a4f2e1d8f0           # display full message as JSON
-gmail read 18c5b2a4f2e1d8f0 --mark-read
-```
-
-### Deleting — `gmail rm`
-
-```bash
-gmail rm 18c5b2a4f2e1d8f0             # move to Trash (reversible)
-gmail rm m1 m2 m3                     # bulk trash
-gmail rm m1 --permanently             # prompts for confirmation, then hard-deletes
-gmail rm m1 --permanently --yes       # skip the prompt
-```
-
-### Labels — `gmail label` / `gmail mv`
-
-```bash
-gmail label ls
-gmail label create "Work"
-gmail label rename "Work" "Work/2026"
-gmail label rm "Work/2026"
-
-# Move = add destination label, optionally remove source label
-gmail mv 18c5b2a4f2e1d8f0 --to "Work"               # just tag with Work
-gmail mv 18c5b2a4f2e1d8f0 --to "Work" --from INBOX  # archive out of INBOX into Work
+gs drive ls                                  # list files
+gs drive ls "name contains 'report'"         # Drive query syntax
+gs drive upload report.pdf --parent <folder-id>
+gs drive download <file-id> -o ./report.pdf
+gs drive mkdir "Reports"
+gs drive rm <file-id>                         # Trash (reversible)
+gs drive rm <file-id> --permanently --yes     # hard delete
 ```
 
 ## Configuration file
 
 ```bash
-cp gmail.yaml.example gmail.yaml   # edit it
-gmail --config-file gmail.yaml tail
+cp gs.yaml.example gs.yaml      # edit it
+gs --config-file gs.yaml gmail tail
 ```
 
-Sections: `auth`, `filters`, `output`, `monitoring`, `checkpoint`, plus top-level
-`verbose`/`quiet`/`log_file`. See `gmail.yaml.example`.
+Sections (`auth`, `filters`, `output`, `monitoring`, `checkpoint`) configure
+auth and the `gs gmail tail` behavior. See `gs.yaml.example`.
 
-## Interactive REPL
+## Migration
 
-```bash
-gmail --credentials credentials.json repl
-```
-
-Commands inside the REPL: `ls [--unread] [LABEL] [N]`, `tail`, `unread`,
-`query <gmail-search>`, `read <id>`, `use <LABEL>`, `labels`, `profile`,
-`config`, `help`, `exit`. The `ls` command parses args by type — numbers are
-limits, text is a label (`ls work 15` and `ls 15 work` both work).
-
-## Output format
-
-Each message is a JSON object: `id`, `threadId`, `timestamp`, `subject`,
-`from {name,email}`, `to [...]`, `labels [...]`, `snippet`, and (when requested)
-`body`, `attachments [{filename,mimeType,size}]`.
-
-## Migration from gmailtail
-
-- The command is now `gmail` with **subcommands**; the old `gmailtail --tail`
-  becomes `gmail tail --tail`.
-- The config directory moved from `~/.gmailtail/` to `~/.gmail/`.
-- The OAuth scope expanded to `https://mail.google.com/`, so the **first run
-  re-authenticates** (the old cached token is no longer valid).
-- The config-example file is now `gmail.yaml.example`.
+- Single command is now **`gs`** with service subgroups; `gmail …` → `gs gmail …`.
+- Authentication is now explicit: run **`gs auth login`** once (other commands no
+  longer trigger the browser flow themselves).
+- Scope expanded to Gmail + Calendar + Drive, so re-authenticate after upgrading.
+- Config dir is `~/.gs/`; the config example is `gs.yaml.example`.
 
 ## Development
 
 ```bash
 uv sync --extra dev
-uv run pytest                 # tests
+uv run pytest                     # tests (mock the Google API)
 uv run black . && uv run isort .
-uv run flake8 gmail/ && uv run mypy gmail/
+uv run flake8 gs/ && uv run mypy gs/
 ```
 
 ## License

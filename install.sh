@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# Installation script for gmail
-# This script installs gmail and its dependencies
+# Installation script for gs
+# This script installs gs and its dependencies
 #
 
 set -e  # Exit on error
@@ -13,7 +13,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Default installation directory
-DEFAULT_INSTALL_DIR="$HOME/.local/gmail"
+DEFAULT_INSTALL_DIR="$HOME/.local/gs"
 INSTALL_DIR="${INSTALL_DIR:-$DEFAULT_INSTALL_DIR}"
 BIN_LINK_DIR="$HOME/.local/bin"
 
@@ -58,8 +58,8 @@ check_uv() {
     print_info "Found uv: $(uv --version)"
 }
 
-install_gmail() {
-    print_info "Installing gmail to $INSTALL_DIR..."
+install_gs() {
+    print_info "Installing gs to $INSTALL_DIR..."
     cd "$SCRIPT_DIR"
 
     # Remove old installation if exists
@@ -73,7 +73,7 @@ install_gmail() {
 
     # Copy project files
     print_info "Copying project files..."
-    cp -r gmail "$INSTALL_DIR/"
+    cp -r gs "$INSTALL_DIR/"
     cp pyproject.toml "$INSTALL_DIR/"
     cp README.md "$INSTALL_DIR/" 2>/dev/null || true
     cp LICENSE "$INSTALL_DIR/" 2>/dev/null || true
@@ -86,20 +86,20 @@ install_gmail() {
 
     # Create wrapper script
     print_info "Creating launcher script..."
-    cat > "$INSTALL_DIR/gmail-run" << EOF
+    cat > "$INSTALL_DIR/gs-run" << EOF
 #!/bin/bash
 source "$INSTALL_DIR/.venv/bin/activate"
-exec python -m gmail.cli "\$@"
+exec python -m gs.cli "\$@"
 EOF
-    chmod +x "$INSTALL_DIR/gmail-run"
+    chmod +x "$INSTALL_DIR/gs-run"
 
     # Create symlink in bin directory
     mkdir -p "$BIN_LINK_DIR"
-    ln -sf "$INSTALL_DIR/gmail-run" "$BIN_LINK_DIR/gmail"
+    ln -sf "$INSTALL_DIR/gs-run" "$BIN_LINK_DIR/gs"
 
     print_info "Installation complete!"
     print_info "Installed to: $INSTALL_DIR"
-    print_info "Symlinked to: $BIN_LINK_DIR/gmail"
+    print_info "Symlinked to: $BIN_LINK_DIR/gs"
 }
 
 check_path() {
@@ -113,7 +113,7 @@ check_path() {
 }
 
 show_usage() {
-    echo "gmail installation script"
+    echo "gs installation script"
     echo ""
     echo "Usage: $0 [OPTIONS]"
     echo ""
@@ -126,10 +126,10 @@ show_usage() {
     echo ""
     echo "Examples:"
     echo "  $0                              # Install to $DEFAULT_INSTALL_DIR"
-    echo "  $0 -d /opt/gmail           # Install to /opt/gmail"
-    echo "  INSTALL_DIR=~/apps/gmail $0 # Install to ~/apps/gmail"
+    echo "  $0 -d /opt/gs           # Install to /opt/gs"
+    echo "  INSTALL_DIR=~/apps/gs $0 # Install to ~/apps/gs"
     echo ""
-    echo "Note: A symlink will be created in $BIN_LINK_DIR/gmail"
+    echo "Note: A symlink will be created in $BIN_LINK_DIR/gs"
 }
 
 main() {
@@ -152,23 +152,24 @@ main() {
         esac
     done
 
-    print_info "gmail installer"
+    print_info "gs installer"
     print_info "Installation directory: $INSTALL_DIR"
     print_info "Symlink directory: $BIN_LINK_DIR"
     echo ""
 
     check_python
     check_uv
-    install_gmail
+    install_gs
     check_path
 
     echo ""
-    print_info "Run 'gmail --help' to get started"
+    print_info "Run 'gs --help' to get started"
     print_info "Requirements: Python 3.8.1+"
     print_info ""
     print_info "Next steps:"
     print_info "  1. Set up Google API credentials (see README.md)"
-    print_info "  2. Run: gmail --credentials credentials.json repl"
+    print_info "  2. Run: gs auth login --credentials credentials.json"
+    print_info "  3. Try:  gs gmail tail --tail   |   gs calendar events   |   gs drive ls"
 }
 
 main "$@"

@@ -1,4 +1,4 @@
-"""`gmail tail` — stream/monitor messages as JSON (the original gmailtail behavior)."""
+"""`gs gmail tail` — stream/monitor messages as JSON (the original tail behavior)."""
 
 import os
 

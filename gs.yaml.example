@@ -1,18 +1,19 @@
-# gmail configuration file example
-# Copy this file to gmail.yaml and customize, then: gmail --config-file gmail.yaml tail
+# gs configuration file example
+# Copy to gs.yaml, then: gs --config-file gs.yaml gmail tail
+# (filters/output/monitoring below apply to `gs gmail tail`)
 
 # Authentication settings
 auth:
   # Path to OAuth2 credentials file downloaded from Google Cloud Console
-  credentials_file: ~/.gmail/credentials.json
+  credentials_file: ~/.gs/credentials.json
 
   # Alternative: service account key file for server environments
-  # auth_token: ~/.gmail/service-account.json
+  # auth_token: ~/.gs/service-account.json
 
-  # Cached token location (created after first successful auth)
-  cached_auth_token: ~/.gmail/tokens
+  # Cached token location (created after `gs auth login`)
+  cached_auth_token: ~/.gs/tokens
 
-# Email filtering settings (used by `gmail tail`)
+# Gmail filtering settings (used by `gs gmail tail`)
 filters:
   # Gmail search query (uses Gmail search syntax)
   query: "label:important"
@@ -26,18 +27,16 @@ filters:
   # unread_only: true
   # since: "2025-01-01T00:00:00Z"
 
-# Output formatting
+# Output formatting (for `gs gmail tail`)
 output:
   format: json-lines  # json, json-lines, compact
   include_body: true
   include_attachments: true
   max_body_length: 500
   pretty: false
-
-  # Specify which fields to include in output
   # fields: ["id", "subject", "from", "timestamp", "labels"]
 
-# Monitoring behavior
+# Monitoring behavior (for `gs gmail tail`)
 monitoring:
   poll_interval: 60        # seconds between polls
   batch_size: 20           # messages per batch
@@ -46,11 +45,11 @@ monitoring:
 
 # Checkpoint settings
 checkpoint:
-  checkpoint_file: ~/.gmail/checkpoint
+  checkpoint_file: ~/.gs/checkpoint
   checkpoint_interval: 120  # save checkpoint every 2 minutes
   resume: true              # resume from last checkpoint on startup
 
 # Logging
 verbose: false
 quiet: false
-# log_file: ~/.gmail/gmail.log
+# log_file: ~/.gs/gs.log

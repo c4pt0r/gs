@@ -15,11 +15,11 @@ test: ## Run tests
 	uv run pytest
 
 test-cov: ## Run tests with coverage
-	uv run pytest --cov=gmail --cov-report=html --cov-report=term
+	uv run pytest --cov=gs --cov-report=html --cov-report=term
 
 lint: ## Run linting
-	uv run flake8 gmail/
-	uv run mypy gmail/
+	uv run flake8 gs/
+	uv run mypy gs/
 
 format: ## Format code
 	uv run black .
@@ -44,12 +44,13 @@ build: ## Build the package
 publish: ## Publish to PyPI
 	uv publish
 
-run: ## Run gmail with example config
-	uv run gmail --help
+run: ## Run gs with example config
+	uv run gs --help
 
 example: ## Show example usage
 	@echo "Example usage:"
-	@echo "  uv run gmail --credentials credentials.json tail --tail"
-	@echo "  uv run gmail tail --from 'noreply@github.com' --tail"
-	@echo "  uv run gmail send --to a@b.com --subject Hi --body hello"
-	@echo "  uv run gmail --config-file gmail.yaml tail"
+	@echo "  uv run gs auth login --credentials credentials.json"
+	@echo "  uv run gs gmail tail --from 'noreply@github.com' --tail"
+	@echo "  uv run gs gmail send --to a@b.com --subject Hi --body hello"
+	@echo "  uv run gs calendar events --from today --to +7d"
+	@echo "  uv run gs drive ls"
