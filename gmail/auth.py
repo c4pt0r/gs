@@ -20,7 +20,10 @@ from .config import Config
 class GmailAuth:
     """Handle Gmail API authentication"""
 
-    SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+    # Full mail scope: required for send, permanent delete, label management,
+    # and modifying read state. Changing this invalidates cached tokens, so the
+    # next run re-authenticates.
+    SCOPES = ["https://mail.google.com/"]
 
     def __init__(self, config: Config):
         self.config = config

@@ -70,9 +70,16 @@ def cli(ctx, **kwargs):
 # Register subcommands
 from .commands.tail import tail  # noqa: E402
 from .commands.repl import repl  # noqa: E402
+from .commands.read import read  # noqa: E402
+from .commands.mark import mark  # noqa: E402
+from .commands.send import send  # noqa: E402
+from .commands.rm import rm  # noqa: E402
+from .commands.mv import mv  # noqa: E402
+from .commands.label import label  # noqa: E402
+from .commands.profile import profile  # noqa: E402
 
-cli.add_command(tail)
-cli.add_command(repl)
+for _cmd in (tail, repl, read, mark, send, rm, mv, label, profile):
+    cli.add_command(_cmd)
 
 
 def main():
